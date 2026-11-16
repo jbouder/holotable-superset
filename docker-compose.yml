@@ -102,6 +102,14 @@ services:
       SUPERSET_URL: http://superset:8088
       SUPERSET_SERVICE_USERNAME: ${SUPERSET_SERVICE_USERNAME:-holotable_svc}
       SUPERSET_SERVICE_PASSWORD: ${SUPERSET_SERVICE_PASSWORD:-holotable_svc}
+      # The agent reaches Superset's MCP server per run, so saved dashboards
+      # still load while superset-mcp is stopped.
+      SUPERSET_MCP_URL: http://superset-mcp:5008/mcp
+      LLM_PROVIDER: ${LLM_PROVIDER:-anthropic}
+      LLM_MODEL: ${LLM_MODEL:-claude-opus-5-5}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_EFFORT: ${LLM_EFFORT:-medium}
     ports:
       - "8000:8000"
     depends_on:

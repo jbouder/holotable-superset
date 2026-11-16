@@ -1,6 +1,6 @@
 import { type AnchorHTMLAttributes, useEffect, useState } from "react";
 
-/** Two routes do not need a router library: `/` and `/d/:id`. */
+/** Three routes do not need a router library: `/`, `/new` and `/d/:id`. */
 export function usePath(): string {
   const [path, setPath] = useState(window.location.pathname);
   useEffect(() => {

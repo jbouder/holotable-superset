@@ -1,4 +1,5 @@
 import {
+  ChatRequest,
   type DashboardData,
   defaultFilterState,
   type FilterState,
@@ -6,6 +7,8 @@ import {
 } from "@poc/spec";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { Hono } from "hono";
+import { streamSSE } from "hono/streaming";
+import { llmReady, runAgent } from "./agent.ts";
 import { deleteDashboard, getDashboard, listDashboards, pool } from "./db.ts";
 import { createSpecMcpServer } from "./spec-mcp.ts";
 import { runSource, SourceError, supersetHealthy } from "./superset-client.ts";
@@ -103,4 +106,30 @@ app.all("/mcp", async (c) => {
   } finally {
     await server.close();
   }
+});
+
+/**
+ * Start an agent run for one chat message. Streams `ChatEvent`s as SSE: a
+ * short line per step, a `dashboard` event after every spec change, the
+ * agent's closing words, then `done`.
+ */
+app.post("/chat", async (c) => {
+  const notReady = llmReady();
+  if (notReady) return c.json({ error: notReady }, 503);
+  const parsed = ChatRequest.safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json({ error: "invalid chat request", issues: parsed.error.issues }, 400);
+
+  return streamSSE(c, async (stream) => {
+    const aborter = new AbortController();
+    stream.onAbort(() => aborter.abort());
+    let queue = Promise.resolve();
+    await runAgent(
+      parsed.data,
+      (event) => {
+        queue = queue.then(() => stream.writeSSE({ event: event.type, data: JSON.stringify(event) }));
+      },
+      aborter.signal,
+    );
+    await queue;
+  });
 });

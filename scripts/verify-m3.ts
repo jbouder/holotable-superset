@@ -41,7 +41,7 @@ async function datasetId(name: string): Promise<number> {
 console.log("1. Tools");
 const { tools } = await client.listTools();
 const names = tools.map((t) => t.name).sort();
-const expected = ["add_tile", "create_dashboard", "get_dashboard", "list_dashboards", "list_viz_types", "remove_tile", "set_layout", "update_tile"];
+const expected = ["add_tile", "create_dashboard", "get_dashboard", "list_dashboards", "list_viz_types", "remove_tile", "set_layout", "update_dashboard", "update_tile"];
 check(`${names.length} tools: ${names.join(", ")}`, JSON.stringify(names) === JSON.stringify(expected));
 const guide = (await call("list_viz_types")).json();
 check(`list_viz_types: ${guide.vizTypes.map((v: { type: string }) => v.type).join(", ")}`, guide.vizTypes.length === 5);

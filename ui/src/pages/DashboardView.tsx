@@ -2,6 +2,8 @@ import { type DashboardFilter, defaultFilterState, type FilterState } from "@poc
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useEffect, useId, useState } from "react";
 import { api } from "../api";
+import { attachChat } from "../chat";
+import { ChatPanel } from "../components/ChatPanel";
 import { DashboardGrid } from "../components/DashboardGrid";
 import { TileView } from "../components/TileView";
 import { Link } from "../router";
@@ -9,6 +11,8 @@ import { Link } from "../router";
 export function DashboardView({ id }: { id: string }) {
   const dashboard = useQuery({ queryKey: ["dashboard", id], queryFn: () => api.dashboard(id) });
   const [filters, setFilters] = useState<FilterState | null>(null);
+
+  useEffect(() => attachChat(id), [id]);
 
   useEffect(() => {
     if (dashboard.data && filters === null) setFilters(defaultFilterState(dashboard.data.spec));
@@ -33,7 +37,8 @@ export function DashboardView({ id }: { id: string }) {
 
   const spec = dashboard.data.spec;
   return (
-    <main className="mx-auto max-w-7xl px-4 py-6">
+    <div className="mx-auto flex max-w-[1600px] flex-col gap-4 px-4 py-6 lg:flex-row lg:items-start">
+    <main className="min-w-0 flex-1">
       <Link to="/" className="text-sm text-muted hover:text-foreground">
         ← Dashboards
       </Link>
@@ -59,8 +64,11 @@ export function DashboardView({ id }: { id: string }) {
           Could not load data: {data.error.message}
         </p>
       ) : null}
+      {spec.tiles.length === 0 ? <p className="text-muted">No tiles yet.</p> : null}
       <DashboardGrid tiles={spec.tiles} renderTile={(tile) => <TileView tile={tile} result={data.data?.tiles[tile.id]} />} />
     </main>
+    <ChatPanel className="h-[32rem] lg:sticky lg:top-6 lg:h-[calc(100vh-3rem)] lg:w-96 lg:shrink-0" />
+    </div>
   );
 }
 

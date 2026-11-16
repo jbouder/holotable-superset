@@ -287,3 +287,29 @@ export interface DashboardData {
   filters: FilterState;
   tiles: Record<string, TileResult>;
 }
+
+/** A chat turn sent to `POST /chat`. Earlier turns travel as plain text. */
+export const ChatRequest = z
+  .object({
+    message: z.string().trim().min(1).max(4000),
+    /** The open dashboard; the agent edits it instead of making a new one. */
+    dashboardId: Id.optional(),
+    history: z
+      .array(z.object({ role: z.enum(["user", "assistant"]), text: z.string().max(8000) }).strict())
+      .max(20)
+      .default([]),
+  })
+  .strict();
+export type ChatRequest = z.infer<typeof ChatRequest>;
+export type ChatRequestInput = z.input<typeof ChatRequest>;
+
+/** Server-sent events from `POST /chat`, one JSON object per `data:` line. */
+export type ChatEvent =
+  /** One short, human-readable line per meaningful step. */
+  | { type: "step"; text: string; status: "ok" | "rejected" | "info" }
+  /** A dashboard was created or changed; the UI refetches it. */
+  | { type: "dashboard"; id: string; version: number }
+  /** The agent's closing words to the user. */
+  | { type: "message"; text: string }
+  | { type: "error"; message: string }
+  | { type: "done"; dashboardId?: string; seconds: number };

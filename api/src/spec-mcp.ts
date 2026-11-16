@@ -268,25 +268,51 @@ export function createSpecMcpServer(): McpServer {
     async ({ dashboardId, ...args }) =>
       guarded("add_tile", async () => {
         const dashboard = await load(dashboardId);
-        const used = new Set(dashboard.tiles.map((t) => t.id));
-        const tileId = args.id ?? makeId("t_", args.title, used);
-        if (used.has(tileId)) throw new Rejected([`tile id "${tileId}" is taken on this dashboard. Pick another id or omit it.`]);
+        // Prove the query on a draft first; the id and spot are fixed under the lock below.
+        const draft = Tile.parse({ ...args, id: args.id ?? "t_draft", layout: args.layout ?? { x: 0, y: 0, ...defaultSize(args.viz.type) } });
+        const data = await proveTile(draft, dashboard);
 
-        const taken = dashboard.tiles.map((t) => t.layout);
-        const layout = args.layout ?? findFreeSlot(taken, defaultSize(args.viz.type));
-        const clash = dashboard.tiles.find((t) => overlaps(t.layout, layout));
-        if (clash) {
-          const free = findFreeSlot(taken, { w: layout.w, h: layout.h });
-          throw new Rejected([
-            `layout overlaps tile "${clash.id}". A free spot of that size: ${JSON.stringify(free)}. Or omit layout.`,
-          ]);
-        }
-
-        const tile = Tile.parse({ ...args, id: tileId, layout });
-        const data = await proveTile(tile, dashboard);
-        const stored = await mutateDashboard(dashboardId, (d) => ({ ...d, tiles: [...d.tiles, tile] }));
+        let tile = draft;
+        const stored = await mutateDashboard(dashboardId, (d) => {
+          const used = new Set(d.tiles.map((t) => t.id));
+          const tileId = args.id ?? makeId("t_", args.title, used);
+          if (used.has(tileId)) throw new Rejected([`tile id "${tileId}" is taken on this dashboard. Pick another id or omit it.`]);
+          const taken = d.tiles.map((t) => t.layout);
+          const layout = args.layout ?? findFreeSlot(taken, defaultSize(args.viz.type));
+          const clash = d.tiles.find((t) => overlaps(t.layout, layout));
+          if (clash) {
+            const free = findFreeSlot(taken, { w: layout.w, h: layout.h });
+            throw new Rejected([
+              `layout overlaps tile "${clash.id}". A free spot of that size: ${JSON.stringify(free)}. Or omit layout.`,
+            ]);
+          }
+          tile = { ...draft, id: tileId, layout };
+          return { ...d, tiles: [...d.tiles, tile] };
+        });
         if (!stored) await load(dashboardId);
         return ok({ dashboardId, version: stored?.version, tile, preview: preview(data) });
+      }),
+  );
+
+  server.registerTool(
+    "update_dashboard",
+    {
+      description: "Change the dashboard's title or summary. Write the summary last, from what the tiles show.",
+      inputSchema: {
+        dashboardId: z.string(),
+        title: z.string().optional(),
+        summary: z.string().optional().describe("One or two sentences on what the dashboard shows"),
+      },
+    },
+    async ({ dashboardId, title, summary }) =>
+      guarded("update_dashboard", async () => {
+        await load(dashboardId);
+        const stored = await mutateDashboard(dashboardId, (d) => ({
+          ...d,
+          ...(title !== undefined && { title }),
+          ...(summary !== undefined && { summary }),
+        }));
+        return ok(stored && { ...summarize(stored.spec, stored.version), summary: stored.spec.summary });
       }),
   );
 
