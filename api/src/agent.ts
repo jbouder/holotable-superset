@@ -1,9 +1,11 @@
+import { randomUUID } from "node:crypto";
 import Anthropic from "@anthropic-ai/sdk";
 import { type ChatEvent, type ChatRequest, Dashboard } from "@poc/spec";
 import { coerceArgs, scopeError } from "./agent-guards.ts";
 import { type AgentTools, connectAgentTools, type ToolResult } from "./agent-tools.ts";
 import { config } from "./config.ts";
 import { getDashboard } from "./db.ts";
+import { LlmHttpError, openAiTurn, type Turn } from "./llm-openai.ts";
 
 /**
  * The agent loop. It turns one chat message into spec MCP calls, using
@@ -38,17 +40,22 @@ const MAX_TURNS = 24;
 type Emit = (event: ChatEvent) => void;
 
 /**
- * Two providers, one SDK. "anthropic" is the Claude API. "ollama" is a local
- * model behind Ollama's Anthropic-compatible /v1/messages, which takes tools
- * and streaming but no prompt caching, betas or effort, so those are left out.
+ * Three providers. "anthropic" is the Claude API. "ollama" is a local model
+ * behind Ollama's Anthropic-compatible /v1/messages, which takes tools and
+ * streaming but no prompt caching, betas or effort, so those are left out.
+ * "openai-compatible" is any Chat Completions API, such as OpenCode serving
+ * Kimi K3; see llm-openai.ts.
  */
+const PROVIDERS = ["anthropic", "ollama", "openai-compatible"];
 const ollama = () => config.llm.provider === "ollama";
+const openAiCompatible = () => config.llm.provider === "openai-compatible";
 
 export function llmReady(): string | null {
-  if (!["anthropic", "ollama"].includes(config.llm.provider)) {
-    return `LLM_PROVIDER "${config.llm.provider}" is not supported. Use "anthropic" or "ollama".`;
+  if (!PROVIDERS.includes(config.llm.provider)) {
+    return `LLM_PROVIDER "${config.llm.provider}" is not supported. Use ${PROVIDERS.map((p) => `"${p}"`).join(", ")}.`;
   }
   if (!ollama() && !config.llm.apiKey) return "Set LLM_API_KEY in .env and restart the api service to use the agent.";
+  if (openAiCompatible() && !config.llm.baseUrl) return "Set LLM_BASE_URL in .env for the openai-compatible provider.";
   return null;
 }
 
@@ -152,6 +159,7 @@ async function openingMessage(req: ChatRequest): Promise<string> {
 export async function runAgent(req: ChatRequest, emit: Emit, signal: AbortSignal): Promise<void> {
   const started = Date.now();
   const client = makeClient();
+  const sessionId = randomUUID();
   // A plain controller and timer: a signal from AbortSignal.any() over
   // AbortSignal.timeout() can be garbage collected before it fires.
   const stop = new AbortController();
@@ -179,8 +187,15 @@ export async function runAgent(req: ChatRequest, emit: Emit, signal: AbortSignal
     ];
 
     for (let turn = 0; turn < MAX_TURNS; turn++) {
-      const stream = client.beta.messages.stream(request(toolDefs, messages), { signal: deadline });
-      const message = await stream.finalMessage();
+      const message: Turn = openAiCompatible()
+        ? await openAiTurn(SYSTEM, toolDefs, messages, {
+            baseUrl: config.llm.baseUrl as string,
+            apiKey: config.llm.apiKey as string,
+            model: config.llm.model,
+            sessionId,
+            signal: deadline,
+          })
+        : await client.beta.messages.stream(request(toolDefs, messages), { signal: deadline }).finalMessage();
 
       if (message.stop_reason === "refusal") {
         emit({ type: "error", message: "The model declined this request." });
@@ -233,6 +248,13 @@ export async function runAgent(req: ChatRequest, emit: Emit, signal: AbortSignal
     if (signal.aborted) return;
     if (timedOut) {
       emit({ type: "error", message: `Stopped after ${config.llm.timeLimit} seconds.` });
+    } else if (err instanceof LlmHttpError) {
+      const known: Record<number, string> = {
+        401: "The LLM rejected the API key. Check LLM_API_KEY.",
+        429: "The LLM is rate limiting requests. Try again in a minute.",
+      };
+      emit({ type: "error", message: known[err.status] ?? `The LLM returned an error (${err.status}).` });
+      console.error("agent llm", err.message);
     } else if (err instanceof Anthropic.AuthenticationError) {
       emit({ type: "error", message: "The LLM rejected the API key. Check LLM_API_KEY." });
     } else if (err instanceof Anthropic.RateLimitError) {

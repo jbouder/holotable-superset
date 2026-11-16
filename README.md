@@ -8,7 +8,8 @@ tile is checked against live data before it is saved.
 ## Setup
 
 You need Docker with Compose v2 and about 4 GB of memory for Docker. For the
-agent you need an Anthropic API key, or a local model (see
+agent you need an Anthropic API key, a key for any OpenAI-compatible API (see
+[Other providers](#other-providers)), or a local model (see
 [Local models](#local-models)).
 
 ```sh
@@ -74,16 +75,33 @@ default in `docker-compose.yml`, so the stack boots without a `.env`.
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `LLM_PROVIDER` | `anthropic` | `anthropic` or `ollama` |
+| `LLM_PROVIDER` | `anthropic` | `anthropic`, `openai-compatible` or `ollama` |
 | `LLM_MODEL` | `claude-opus-5-5` | Model name for the provider |
-| `LLM_API_KEY` | none | Anthropic API key; not needed for `ollama` |
-| `LLM_BASE_URL` | provider default | Override the API address, for example a host Ollama |
+| `LLM_API_KEY` | none | API key for the provider; not needed for `ollama` |
+| `LLM_BASE_URL` | provider default | API address; required for `openai-compatible` |
 | `LLM_EFFORT` | `medium` | Anthropic effort: `low`, `medium`, `high`, `xhigh` or `max` |
 | `AGENT_TIME_LIMIT` | `180` | Seconds before an agent run stops |
 | `OLLAMA_MODELS` | a Docker volume | Where the `local-llm` profile keeps models |
 
 With Claude, the API turns on Anthropic's server-side fallback, so a request
 the model declines is retried on another model instead of failing.
+
+## Other providers
+
+`openai-compatible` talks to any Chat Completions API. It was tested with
+Kimi K3 on OpenCode Zen, which passed `verify-m4.sh`: a new dashboard in 57
+seconds and a follow-up in 25.
+
+```sh
+LLM_PROVIDER=openai-compatible
+LLM_MODEL=kimi-k3
+LLM_API_KEY=...
+LLM_BASE_URL=https://opencode.ai/zen/v1
+```
+
+OpenCode Go uses `https://opencode.ai/inference/go/openai/v1` and needs an
+active Go subscription on the key. OpenCode describes Go as meant for coding
+agents, so Zen is the better fit for this app.
 
 ## Local models
 
