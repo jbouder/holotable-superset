@@ -1,0 +1,294 @@
+/* Theme tokens and Tailwind theme mapping copied from Holotable src/app/globals.css
+   (the default dark and light palettes, @theme, motion tokens and body). Other palettes left out. */
+@import "tailwindcss";
+
+/*
+ * Design tokens expressed in OKLCH (Tailwind v4 @theme). Chart colors are
+ * tokens too (--chart-*), read off <html> and resolved to sRGB hex by
+ * lib/color/chart-theme.ts before being handed to ECharts or Vega (a canvas
+ * cannot consume oklch() or a CSS variable).
+ *
+ * Every text-on-background pairing below meets WCAG AA (4.5:1) in both themes,
+ * and test/contrast.test.ts keeps it that way: change a lightness here and it
+ * says which pairing broke (src/lib/color/contrast.ts lists them; the ratios
+ * are in docs/src/content/docs/architecture/accessibility.md).
+ *
+ * `[data-theme="dark"]` repeats the dark set so any element, not only
+ * `<html>`, can opt into a palette: the appearance settings draw a dark
+ * preview inside a light page that way.
+ */
+:root,
+[data-theme="dark"] {
+  color-scheme: dark;
+  --background: oklch(0.15 0.012 260);
+  --surface: oklch(0.195 0.012 260);
+  --surface-2: oklch(0.24 0.012 260);
+  --surface-3: oklch(0.29 0.012 260);
+  --foreground: oklch(0.95 0.008 260);
+  --muted: oklch(0.72 0.015 260);
+  --border: oklch(0.33 0.012 260);
+  /* Controls' edges (inputs, checkboxes): a 3:1 component boundary (#504). */
+  --border-strong: oklch(0.56 0.012 260);
+  /* Focus: visible on every surface and beside the primary and danger fills,
+     which the primary color itself is not (#504). */
+  --ring: oklch(0.99 0 0);
+  --selection: oklch(0.4 0.08 255);
+  --primary: oklch(0.72 0.13 250);
+  /* Dark text on the fill: a blue light enough to read as text on surface-2
+     is too light to carry white text at AA (#77). */
+  --primary-foreground: oklch(0.15 0.012 260);
+  --danger: oklch(0.74 0.15 22);
+  --warning: oklch(0.82 0.13 82);
+  --success: oklch(0.8 0.12 160);
+  /* Charts (#502). Eight categorical series, each at least 3:1 on --surface
+     (CONTRAST_PAIRS), a sequential ramp, a diverging pair around a quiet
+     middle, and the chrome a chart draws. Canvas cannot read these: they are
+     read off <html> and converted (src/lib/color/chart-theme.ts). */
+  --chart-1: oklch(0.68 0.13 250);
+  --chart-2: oklch(0.72 0.12 160);
+  --chart-3: oklch(0.8 0.13 80);
+  --chart-4: oklch(0.72 0.15 25);
+  --chart-5: oklch(0.77 0.11 310);
+  --chart-6: oklch(0.78 0.09 210);
+  --chart-7: oklch(0.7 0.15 345);
+  --chart-8: oklch(0.87 0.05 95);
+  --chart-seq-1: oklch(0.3 0.05 250);
+  --chart-seq-2: oklch(0.43 0.09 250);
+  --chart-seq-3: oklch(0.56 0.12 250);
+  --chart-seq-4: oklch(0.69 0.12 240);
+  --chart-seq-5: oklch(0.83 0.08 220);
+  --chart-div-low: oklch(0.68 0.13 250);
+  --chart-div-mid: oklch(0.33 0.012 260);
+  --chart-div-high: oklch(0.72 0.15 25);
+  --chart-text: var(--muted);
+  --chart-axis: var(--border);
+  /* Gridlines a step below the second surface: seen, not read. Every other
+     palette keeps var(--surface-2). */
+  --chart-grid: oklch(0.225 0.012 260);
+  --chart-track: var(--surface-2);
+  /* How strongly a mark behind a value is drawn: a stat's sparkline, a gauge's bands. */
+  --chart-faint: 0.35;
+  /* The one chart style (#647), read through ChartTheme like the colors: the
+     type scale a chart writes in, every series line's width, an area's
+     opacities (an unstacked area fades from --chart-area-fade at its line; a
+     threshold-colored one is flat; a stacked band is near solid), and how far
+     a large area (a treemap node, a slice, a span) is pulled toward the
+     surface. Not per scheme: the light block inherits them. */
+  --chart-font-size-axis: 11px;
+  --chart-font-size-label: 11px;
+  --chart-font-size-tooltip: 12px;
+  --chart-font-size-value: 24px;
+  --chart-line-width: 2px;
+  --chart-area-fade: 0.32;
+  --chart-area-flat: 0.18;
+  --chart-area-stacked: 0.85;
+  --chart-soften: 0.2;
+  /* The spec's palette-only color tokens: a series each, by family. A theme
+     that orders its series differently points them elsewhere (#505). */
+  --orange: var(--chart-3);
+  --purple: var(--chart-5);
+  --teal: var(--chart-6);
+  /* A status or spec color as a fill rather than text (#641): a gauge's arc,
+     a bar, a sparkline, a tile, a span. A fill is a graphic, held to 3:1
+     (WCAG 1.4.11) rather than the 4.5:1 text needs, so where a text-strength
+     amber reads brown a scheme draws its fills a clearly amber shade. Only
+     the amber pair is split: in dark, and for every other color, the fill is
+     the text token. Every light block sets both, so a light preview inside a
+     dark page does not inherit the dark aliases. */
+  --warning-fill: var(--warning);
+  --orange-fill: var(--orange);
+  --code-keyword: var(--primary);
+  --code-string: var(--success);
+  --code-number: var(--warning);
+  --code-comment: var(--muted);
+  /* Status tints (#506): a notice, badge or status tile is its status at a
+     low alpha, with that status as its text. Each alpha is a token, so a theme
+     can make tints solid fills; text inside one (`.tinted`) then takes
+     --tint-foreground. The fill colors are fixed here, on the theme's own
+     element, so `.tinted` can swap the text tokens without the fill following. */
+  --tint-5: 5%;
+  --tint-10: 10%;
+  --tint-15: 15%;
+  --tint-20: 20%;
+  --tint-danger: var(--danger);
+  --tint-warning: var(--warning);
+  --tint-success: var(--success);
+  --tint-foreground: var(--foreground);
+  --tinted-foreground: var(--foreground);
+  --tinted-muted: var(--muted);
+  --tinted-danger: var(--danger);
+  --tinted-warning: var(--warning);
+  --tinted-success: var(--success);
+  --tinted-primary: var(--primary);
+  /* The page's own inks, fixed on the theme's element like the fills, so a
+     control inside a tint that draws its own fill can take them back. */
+  --page-foreground: var(--foreground);
+  --page-muted: var(--muted);
+  --page-primary: var(--primary);
+  --page-danger: var(--danger);
+  --page-warning: var(--warning);
+  --page-success: var(--success);
+  /* Square corners and flat cards (#648). Every other palette sets both
+     itself, so this look stays the default's; a THEME_FILE picks its own
+     (`radius`, `shadow`). */
+  --radius: 0px;
+  --shadow-card: none;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --background: oklch(0.975 0.004 260);
+  --surface: oklch(1 0 0);
+  --surface-2: oklch(0.955 0.006 260);
+  --surface-3: oklch(0.92 0.008 260);
+  --foreground: oklch(0.22 0.02 260);
+  --muted: oklch(0.5 0.02 260);
+  --border: oklch(0.86 0.01 260);
+  --border-strong: oklch(0.55 0.015 260);
+  --ring: oklch(0.2 0.02 260);
+  --selection: oklch(0.9 0.05 250);
+  --primary: oklch(0.5 0.17 255);
+  --primary-foreground: oklch(0.99 0.004 260);
+  /* Danger, warning and success were searched together: each AA on its own
+     20% tint (a badge) and apart from the others under every color-vision
+     deficiency, which pins the warning's lightness at 0.5. Chroma is what is
+     left to make it read amber rather than brown (#641). */
+  --danger: oklch(0.48 0.2 10);
+  --warning: oklch(0.5 0.17 70);
+  --success: oklch(0.44 0.1 160);
+  --chart-1: oklch(0.52 0.15 250);
+  --chart-2: oklch(0.56 0.12 160);
+  --chart-3: oklch(0.62 0.15 70);
+  --chart-4: oklch(0.55 0.17 25);
+  --chart-5: oklch(0.5 0.15 305);
+  --chart-6: oklch(0.44 0.09 215);
+  --chart-7: oklch(0.55 0.16 345);
+  --chart-8: oklch(0.42 0.06 95);
+  --chart-seq-1: oklch(0.94 0.03 240);
+  --chart-seq-2: oklch(0.82 0.07 245);
+  --chart-seq-3: oklch(0.68 0.12 250);
+  --chart-seq-4: oklch(0.54 0.15 252);
+  --chart-seq-5: oklch(0.4 0.12 255);
+  --chart-div-low: oklch(0.52 0.15 250);
+  --chart-div-mid: oklch(0.94 0.006 260);
+  --chart-div-high: oklch(0.55 0.17 25);
+  --chart-text: var(--muted);
+  --chart-axis: var(--border);
+  --chart-grid: oklch(0.935 0.006 260);
+  --chart-track: var(--surface-2);
+  /* How strongly a mark behind a value is drawn: a stat's sparkline, a gauge's bands. */
+  --chart-faint: 0.35;
+  /* The first palette to split orange from its series (#648): light chart-3
+     is a bright amber held to 3:1 as a graphic, and the spec's orange is
+     text as often as a line, held to AA (CONTRAST_PAIRS). So it is its own
+     value, a shade under the series it stands for. */
+  --orange: oklch(0.52 0.15 66);
+  --purple: var(--chart-5);
+  --teal: var(--chart-6);
+  /* Fills in the bright amber (#641): warning a shade yellower than the
+     series, and the spec's orange as the series it stands for. */
+  --warning-fill: oklch(0.66 0.15 75);
+  --orange-fill: var(--chart-3);
+  --code-keyword: var(--primary);
+  --code-string: var(--success);
+  --code-number: var(--warning);
+  --code-comment: var(--muted);
+  /* Repeated from the dark block, so a light element inside a page in
+     another theme (a Settings preview, #507) does not inherit its alphas. */
+  --tint-5: 5%;
+  --tint-10: 10%;
+  --tint-15: 15%;
+  --tint-20: 20%;
+  --tint-danger: var(--danger);
+  --tint-warning: var(--warning);
+  --tint-success: var(--success);
+  --tint-foreground: var(--foreground);
+  --tinted-foreground: var(--foreground);
+  --tinted-muted: var(--muted);
+  --tinted-danger: var(--danger);
+  --tinted-warning: var(--warning);
+  --tinted-success: var(--success);
+  --tinted-primary: var(--primary);
+  /* The page's own inks, fixed on the theme's element like the fills, so a
+     control inside a tint that draws its own fill can take them back. */
+  --page-foreground: var(--foreground);
+  --page-muted: var(--muted);
+  --page-primary: var(--primary);
+  --page-danger: var(--danger);
+  --page-warning: var(--warning);
+  --page-success: var(--success);
+  --radius: 0px;
+  --shadow-card: none;
+}
+
+@theme inline {
+  --color-border-strong: var(--border-strong);
+  --color-tint-danger: var(--tint-danger);
+  --color-tint-warning: var(--tint-warning);
+  --color-tint-success: var(--tint-success);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-chart-6: var(--chart-6);
+  --color-chart-7: var(--chart-7);
+  --color-chart-8: var(--chart-8);
+  --color-chart-grid: var(--chart-grid);
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-danger: var(--danger);
+  --color-warning: var(--warning);
+  --color-success: var(--success);
+  --radius-lg: var(--radius);
+  --radius-sm: calc(var(--radius) / 2);
+  --font-sans:
+    var(--font-chakra-petch), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif;
+  --font-mono:
+    var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+}
+
+/*
+ * Motion tokens (#234). Every transition and animation in the app takes its
+ * duration and easing from here: `duration-(--duration-base)` for the
+ * durations (Tailwind has no duration theme namespace) and the
+ * `ease-standard` / `ease-emphasized` utilities for the curves. `static`
+ * so the variables are emitted whether or not a utility has used them yet,
+ * because `src/lib/motion.ts` and plain CSS rules read them by name too.
+ */
+@theme static {
+  --duration-fast: 100ms;
+  --duration-base: 200ms;
+  --duration-slow: 350ms;
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-emphasized: cubic-bezier(0.2, 0, 0, 1);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
+
+/* POC additions: Holotable loads these faces through next/font; here they come
+   from Google Fonts (index.html) under the same variable names. */
+:root {
+  --font-chakra-petch: "Chakra Petch";
+  --font-jetbrains-mono: "JetBrains Mono";
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+}

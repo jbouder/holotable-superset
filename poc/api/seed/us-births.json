@@ -1,0 +1,63 @@
+{
+  "id": "us_births",
+  "title": "US births",
+  "summary": "Hand-written M2 check: four tiles over Superset's birth_names example, queried live.",
+  "filters": [{ "id": "f_time", "type": "time_range", "label": "Time range", "default": "No filter" }],
+  "tiles": [
+    {
+      "id": "t_total",
+      "title": "Total births",
+      "source": {
+        "type": "superset_metrics",
+        "datasetId": "name:birth_names",
+        "metrics": ["sum__num"],
+        "timeRange": "$f_time"
+      },
+      "viz": { "type": "big_number", "value": "sum__num", "format": "compact", "unit": "births" },
+      "layout": { "x": 0, "y": 0, "w": 4, "h": 3 }
+    },
+    {
+      "id": "t_by_year",
+      "title": "Births per year by gender",
+      "source": {
+        "type": "superset_metrics",
+        "datasetId": "name:birth_names",
+        "metrics": ["sum__num"],
+        "dimensions": ["ds", "gender"],
+        "timeColumn": "ds",
+        "timeGrain": "P1Y",
+        "timeRange": "$f_time"
+      },
+      "viz": { "type": "line", "x": "ds", "y": "sum__num", "series": "gender", "format": "compact" },
+      "layout": { "x": 4, "y": 0, "w": 8, "h": 3 }
+    },
+    {
+      "id": "t_states",
+      "title": "Top 10 states",
+      "source": {
+        "type": "superset_metrics",
+        "datasetId": "name:birth_names",
+        "metrics": ["sum__num"],
+        "dimensions": ["state"],
+        "timeRange": "$f_time",
+        "rowLimit": 10
+      },
+      "viz": { "type": "bar", "x": "state", "y": "sum__num", "format": "compact" },
+      "layout": { "x": 0, "y": 3, "w": 6, "h": 4 }
+    },
+    {
+      "id": "t_names",
+      "title": "Most common names",
+      "source": {
+        "type": "superset_metrics",
+        "datasetId": "name:birth_names",
+        "metrics": ["sum__num", { "column": "state", "aggregate": "COUNT_DISTINCT", "label": "states" }],
+        "dimensions": ["name", "gender"],
+        "timeRange": "$f_time",
+        "rowLimit": 15
+      },
+      "viz": { "type": "table", "columns": ["name", "gender", "sum__num", "states"] },
+      "layout": { "x": 6, "y": 3, "w": 6, "h": 4 }
+    }
+  ]
+}

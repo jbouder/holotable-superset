@@ -10,5 +10,5 @@ cd poc
 docker compose up
 ```
 
-Status: M1 (stack boots). Run `poc/scripts/verify-m1.sh` once the stack is
-healthy. The full README arrives with M5.
+Status: M2 (headless render). Open http://localhost:3000 once the stack is healthy, and run `poc/scripts/verify-m1.sh` and `verify-m2.sh` to check it.
+The full README arrives with M5.

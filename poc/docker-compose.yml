@@ -92,5 +92,38 @@ services:
       retries: 30
       start_period: 20s
 
+  api:
+    build:
+      context: .
+      dockerfile: api/Dockerfile
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-superset}:${POSTGRES_PASSWORD:-superset}@superset-db:5432/holotable
+      REDIS_URL: redis://redis:6379/3
+      SUPERSET_URL: http://superset:8088
+      SUPERSET_SERVICE_USERNAME: ${SUPERSET_SERVICE_USERNAME:-holotable_svc}
+      SUPERSET_SERVICE_PASSWORD: ${SUPERSET_SERVICE_PASSWORD:-holotable_svc}
+    ports:
+      - "8000:8000"
+    depends_on:
+      superset:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8000/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  ui:
+    build:
+      context: .
+      dockerfile: ui/Dockerfile
+    ports:
+      - "3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+
 volumes:
   superset-db:
