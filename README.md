@@ -7,7 +7,7 @@ tile is checked against live data before it is saved.
 
 ## Setup
 
-You need Docker with Compose v2 and about 8 GB of memory for Docker. For the
+You need Docker with Compose v2 and about 4 GB of memory for Docker. For the
 agent you need an Anthropic API key, or a local model (see
 [Local models](#local-models)).
 
@@ -39,7 +39,7 @@ tiles that fail, return no data or do not match their chart. The UI (React,
 Vite, ECharts, with Holotable's grid, card and theme) never talks to Superset
 or MCP. It reads saved specs and data over REST, so dashboards load with no
 LLM and with Superset's MCP server stopped. The POC creates no Superset charts
-or dashboards.
+or dashboards; the ones Superset shows come with its example data.
 
 | Service | Port | Role |
 | --- | --- | --- |
@@ -133,7 +133,7 @@ for the TypeScript ones.
 | `scripts/verify-m2.sh` | Seeded dashboard loads live data through the UI proxy; filters; tile cache |
 | `scripts/verify-m3.sh` | Spec MCP server from an MCP client: valid tile saved, six kinds of bad tile rejected |
 | `scripts/verify-m4.sh` | Prompt to dashboard in under 90 seconds; a follow-up changes exactly one tile (needs an LLM) |
-| `scripts/verify-m5.sh` | Dashboards load with `superset-mcp` stopped; Superset holds no charts or dashboards |
+| `scripts/verify-m5.sh` | Dashboards load with `superset-mcp` stopped; no Superset charts or dashboards beyond its examples |
 
 `npm test --workspace @poc/api` runs the unit tests.
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # M5 check, for the definition of done: saved dashboards load and refresh
 # with superset-mcp stopped, the agent explains a missing LLM key instead of
-# failing, and Superset holds no charts or dashboards. Restarts superset-mcp
+# failing, and Superset holds no charts or dashboards beyond its examples. Restarts superset-mcp
 # at the end.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -29,12 +29,17 @@ else
   echo "   an LLM is configured (HTTP $code); skipped"
 fi
 
-echo "4. Superset holds no charts or dashboards"
+echo "4. No Superset charts or dashboards made by anyone"
+# Superset's example data comes with its own charts and dashboards, which have
+# no creator. Anything made through the API or the UI would have one.
 token=$(curl -fsS -X POST "$SUPERSET/api/v1/security/login" -H 'Content-Type: application/json' \
   -d "{\"username\":\"$ADMIN_USER\",\"password\":\"$ADMIN_PASS\",\"provider\":\"db\"}" | json "print(d['access_token'])")
 for kind in chart dashboard; do
-  curl -fsS "$SUPERSET/api/v1/$kind/?q=(page_size:1)" -H "Authorization: Bearer $token" |
-    json "n = d['count']; print(f'    {n} ${kind}s'); sys.exit(1 if n else 0)"
+  curl -fsS "$SUPERSET/api/v1/$kind/?q=(columns:!(id,created_by.username),page_size:1000)" -H "Authorization: Bearer $token" |
+    json "
+made = [r['id'] for r in d['result'] if (r.get('created_by') or {}).get('username')]
+print(f\"    {d['count']} ${kind}s from the examples, {len(made)} made by a user\")
+sys.exit(1 if made else 0)"
 done
 
 echo "M5 checks passed."
