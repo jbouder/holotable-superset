@@ -2,6 +2,7 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { config } from "./config.ts";
+import { coerceArgs } from "./agent-guards.ts";
 import { createSpecMcpServer } from "./spec-mcp.ts";
 
 /**
@@ -74,7 +75,7 @@ export async function connectAgentTools(): Promise<AgentTools> {
       const client = owner.get(name);
       if (!client) return { text: `There is no tool named "${name}".`, isError: true };
       try {
-        const res = (await client.callTool({ name, arguments: (input ?? {}) as Record<string, unknown> })) as CallResult;
+        const res = (await client.callTool({ name, arguments: coerceArgs(input) })) as CallResult;
         return toResult(res);
       } catch (err) {
         return { text: `${name} failed: ${err instanceof Error ? err.message : String(err)}`, isError: true };

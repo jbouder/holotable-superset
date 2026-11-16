@@ -110,6 +110,7 @@ services:
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_BASE_URL: ${LLM_BASE_URL:-}
       LLM_EFFORT: ${LLM_EFFORT:-medium}
+      AGENT_TIME_LIMIT: ${AGENT_TIME_LIMIT:-180}
     ports:
       - "8000:8000"
     depends_on:
@@ -133,5 +134,30 @@ services:
       api:
         condition: service_healthy
 
+  # Local LLM (profile local-llm): Ollama on the Docker network, so an agent
+  # run makes no outbound calls. Set LLM_PROVIDER=ollama in .env.
+  ollama:
+    image: ollama/ollama:0.21.0
+    profiles: ["local-llm"]
+    volumes:
+      - ${OLLAMA_MODELS:-ollama-models}:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # One-shot: download the model once. It is the only step that needs the network.
+  ollama-pull:
+    image: ollama/ollama:0.21.0
+    profiles: ["local-llm"]
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: ["ollama", "pull", "${LLM_MODEL:-qwen3.5:35b}"]
+    depends_on:
+      ollama:
+        condition: service_healthy
+
 volumes:
+  ollama-models:
   superset-db:

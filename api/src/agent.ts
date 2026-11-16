@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { type ChatEvent, type ChatRequest, Dashboard } from "@poc/spec";
+import { coerceArgs, scopeError } from "./agent-guards.ts";
 import { type AgentTools, connectAgentTools, type ToolResult } from "./agent-tools.ts";
 import { config } from "./config.ts";
 import { getDashboard } from "./db.ts";
@@ -36,12 +37,44 @@ const MAX_TURNS = 24;
 
 type Emit = (event: ChatEvent) => void;
 
+/**
+ * Two providers, one SDK. "anthropic" is the Claude API. "ollama" is a local
+ * model behind Ollama's Anthropic-compatible /v1/messages, which takes tools
+ * and streaming but no prompt caching, betas or effort, so those are left out.
+ */
+const ollama = () => config.llm.provider === "ollama";
+
 export function llmReady(): string | null {
-  if (config.llm.provider !== "anthropic") {
-    return `LLM_PROVIDER "${config.llm.provider}" is not supported yet. Use "anthropic".`;
+  if (!["anthropic", "ollama"].includes(config.llm.provider)) {
+    return `LLM_PROVIDER "${config.llm.provider}" is not supported. Use "anthropic" or "ollama".`;
   }
-  if (!config.llm.apiKey) return "Set LLM_API_KEY in .env and restart the api service to use the agent.";
+  if (!ollama() && !config.llm.apiKey) return "Set LLM_API_KEY in .env and restart the api service to use the agent.";
   return null;
+}
+
+function makeClient(): Anthropic {
+  return ollama()
+    ? new Anthropic({ apiKey: "ollama", baseURL: config.llm.baseUrl ?? "http://ollama:11434", maxRetries: 0 })
+    : new Anthropic({ apiKey: config.llm.apiKey, baseURL: config.llm.baseUrl, maxRetries: 2 });
+}
+
+function request(
+  tools: Anthropic.Beta.BetaTool[],
+  messages: Anthropic.Beta.BetaMessageParam[],
+): Anthropic.Beta.MessageCreateParamsStreaming | Anthropic.Beta.MessageCreateParamsNonStreaming {
+  if (ollama()) {
+    return { model: config.llm.model, max_tokens: 16_000, system: SYSTEM, tools, messages };
+  }
+  return {
+    model: config.llm.model,
+    max_tokens: 32_000,
+    system: [{ type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } }],
+    tools: tools.map((t) => ({ ...t, eager_input_streaming: true })),
+    messages,
+    output_config: { effort: config.llm.effort },
+    betas: ["server-side-fallback-2026-07-01"],
+    fallbacks: "default",
+  };
 }
 
 function parse(text: string): Record<string, unknown> | null {
@@ -118,7 +151,7 @@ async function openingMessage(req: ChatRequest): Promise<string> {
 
 export async function runAgent(req: ChatRequest, emit: Emit, signal: AbortSignal): Promise<void> {
   const started = Date.now();
-  const client = new Anthropic({ apiKey: config.llm.apiKey, baseURL: config.llm.baseUrl, maxRetries: 2 });
+  const client = makeClient();
   const deadline = AbortSignal.any([signal, AbortSignal.timeout(config.llm.timeLimit * 1000)]);
   let tools: AgentTools | null = null;
   let dashboardId = req.dashboardId;
@@ -129,7 +162,6 @@ export async function runAgent(req: ChatRequest, emit: Emit, signal: AbortSignal
       name: t.name,
       description: t.description,
       input_schema: t.inputSchema as Anthropic.Beta.BetaTool.InputSchema,
-      eager_input_streaming: true,
     }));
     const messages: Anthropic.Beta.BetaMessageParam[] = [
       ...req.history.map((h) => ({ role: h.role, content: h.text })),
@@ -137,19 +169,7 @@ export async function runAgent(req: ChatRequest, emit: Emit, signal: AbortSignal
     ];
 
     for (let turn = 0; turn < MAX_TURNS; turn++) {
-      const stream = client.beta.messages.stream(
-        {
-          model: config.llm.model,
-          max_tokens: 32_000,
-          system: [{ type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } }],
-          tools: toolDefs,
-          messages,
-          output_config: { effort: config.llm.effort },
-          betas: ["server-side-fallback-2026-07-01"],
-          fallbacks: "default",
-        },
-        { signal: deadline },
-      );
+      const stream = client.beta.messages.stream(request(toolDefs, messages), { signal: deadline });
       const message = await stream.finalMessage();
 
       if (message.stop_reason === "refusal") {
@@ -178,8 +198,9 @@ export async function runAgent(req: ChatRequest, emit: Emit, signal: AbortSignal
       messages.push({ role: "assistant", content: message.content });
       const results = await Promise.all(
         calls.map(async (call) => {
-          const input = (call.input ?? {}) as Record<string, unknown>;
-          const result = await (tools as AgentTools).call(call.name, input);
+          const input = coerceArgs(call.input);
+          const refused = scopeError(call.name, input, dashboardId);
+          const result = refused ? { text: refused, isError: true } : await (tools as AgentTools).call(call.name, input);
           const step = describe(call.name, input, result);
           if (step) emit(step);
           const write = written(call.name, result);
