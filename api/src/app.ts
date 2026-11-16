@@ -4,8 +4,10 @@ import {
   type FilterState,
   type TileResult,
 } from "@poc/spec";
+import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { Hono } from "hono";
 import { deleteDashboard, getDashboard, listDashboards, pool } from "./db.ts";
+import { createSpecMcpServer } from "./spec-mcp.ts";
 import { runSource, SourceError, supersetHealthy } from "./superset-client.ts";
 
 export const app = new Hono();
@@ -82,4 +84,23 @@ app.get("/dashboards/:id/data", async (c) => {
 
   const body: DashboardData = { filters, tiles: Object.fromEntries(results) };
   return c.json(body);
+});
+
+/**
+ * The spec MCP server, over streamable HTTP. Stateless: each request gets a
+ * fresh server and transport, and every tool reads and writes Postgres, so
+ * nothing lives in memory between calls.
+ */
+app.all("/mcp", async (c) => {
+  const transport = new WebStandardStreamableHTTPServerTransport({
+    sessionIdGenerator: undefined,
+    enableJsonResponse: true,
+  });
+  const server = createSpecMcpServer();
+  await server.connect(transport);
+  try {
+    return await transport.handleRequest(c.req.raw);
+  } finally {
+    await server.close();
+  }
 });

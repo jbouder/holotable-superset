@@ -65,6 +65,56 @@ export async function saveDashboard(spec: Dashboard): Promise<StoredDashboard> {
   return toStored(rows[0] as Row);
 }
 
+/** Insert a new spec. Returns null when the id is already taken. */
+export async function createDashboard(spec: Dashboard): Promise<StoredDashboard | null> {
+  const parsed = Dashboard.parse(spec);
+  const { rows } = await pool.query<Row>(
+    `INSERT INTO holotable.dashboards (id, title, spec) VALUES ($1, $2, $3)
+     ON CONFLICT (id) DO NOTHING
+     RETURNING spec, version, updated_at`,
+    [parsed.id, parsed.title, JSON.stringify(parsed)],
+  );
+  return rows[0] ? toStored(rows[0]) : null;
+}
+
+/**
+ * Read, change and write one spec under a row lock, so two edits to the same
+ * dashboard cannot overwrite each other. `change` returns the new spec, which
+ * is validated before it is written. Returns null when the id does not exist.
+ */
+export async function mutateDashboard(
+  id: string,
+  change: (spec: Dashboard) => Dashboard,
+): Promise<StoredDashboard | null> {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const { rows } = await client.query<Row>(
+      "SELECT spec, version, updated_at FROM holotable.dashboards WHERE id = $1 FOR UPDATE",
+      [id],
+    );
+    if (!rows[0]) {
+      await client.query("ROLLBACK");
+      return null;
+    }
+    const next = Dashboard.parse(change(toStored(rows[0]).spec));
+    const updated = await client.query<Row>(
+      `UPDATE holotable.dashboards
+         SET title = $2, spec = $3, version = version + 1, updated_at = now()
+       WHERE id = $1
+       RETURNING spec, version, updated_at`,
+      [id, next.title, JSON.stringify(next)],
+    );
+    await client.query("COMMIT");
+    return toStored(updated.rows[0] as Row);
+  } catch (err) {
+    await client.query("ROLLBACK").catch(() => undefined);
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
 export async function deleteDashboard(id: string): Promise<boolean> {
   const { rowCount } = await pool.query("DELETE FROM holotable.dashboards WHERE id = $1", [id]);
   return (rowCount ?? 0) > 0;
