@@ -39,8 +39,9 @@ the spec MCP server at `/mcp`, which runs each new tile's query and rejects
 tiles that fail, return no data or do not match their chart. The UI (React,
 Vite, ECharts, with Holotable's grid, card and theme) never talks to Superset
 or MCP. It reads saved specs and data over REST, so dashboards load with no
-LLM and with Superset's MCP server stopped. The POC creates no Superset charts
-or dashboards; the ones Superset shows come with its example data.
+LLM and with Superset's MCP server stopped. The demo creates no Superset charts
+or dashboards; the ones Superset shows come with its example data, plus the
+optional mirror below.
 
 | Service | Port | Role |
 | --- | --- | --- |
@@ -67,6 +68,24 @@ or dashboards; the ones Superset shows come with its example data.
 4. Optional: `docker compose stop superset-mcp`, then reload a dashboard. It
    still loads and refreshes, because loading never uses MCP.
    `docker compose start superset-mcp` brings the agent back.
+
+## Compare with a native Superset dashboard
+
+`scripts/mirror-to-superset.sh` rebuilds the seeded dashboard inside Superset,
+so you can compare the two side by side. It is opt-in, and nothing in the demo
+runs it.
+
+```sh
+npm install                          # once, at the repo root
+scripts/mirror-to-superset.sh        # add --dark for Superset's dark theme
+```
+
+Then open http://localhost:8088/superset/dashboard/holotable-us-births/ and
+log in as admin. You get one chart per tile on the same 12-column grid, the
+summary as a header, each note as its chart's description, and the time range
+as a native filter. Each chart's saved query is built by the same code the API
+uses, so both dashboards show the same numbers. Running the script again
+replaces the mirror; pass another dashboard id to mirror that one instead.
 
 ## Configuration
 
@@ -151,7 +170,8 @@ for the TypeScript ones.
 | `scripts/verify-m2.sh` | Seeded dashboard loads live data through the UI proxy; filters; tile cache |
 | `scripts/verify-m3.sh` | Spec MCP server from an MCP client: valid tile saved, six kinds of bad tile rejected |
 | `scripts/verify-m4.sh` | Prompt to dashboard in under 90 seconds; a follow-up changes exactly one tile (needs an LLM) |
-| `scripts/verify-m5.sh` | Dashboards load with `superset-mcp` stopped; no Superset charts or dashboards beyond its examples |
+| `scripts/verify-m5.sh` | Dashboards load with `superset-mcp` stopped; no Superset charts or dashboards beyond its examples and the mirror |
+| `scripts/verify-m6.sh` | Mirrors the seed, then checks the Superset dashboard has the same tiles, grid, time filter and rows |
 
 `npm test --workspace @poc/api` runs the unit tests.
 
