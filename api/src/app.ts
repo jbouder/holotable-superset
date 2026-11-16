@@ -123,6 +123,11 @@ app.post("/chat", async (c) => {
     const aborter = new AbortController();
     stream.onAbort(() => aborter.abort());
     let queue = Promise.resolve();
+    // A comment line every 15 s keeps proxies from closing the stream while
+    // a slow model thinks.
+    const keepAlive = setInterval(() => {
+      queue = queue.then(() => stream.write(": keep-alive\n\n")).then(() => undefined);
+    }, 15_000);
     await runAgent(
       parsed.data,
       (event) => {
@@ -130,6 +135,7 @@ app.post("/chat", async (c) => {
       },
       aborter.signal,
     );
+    clearInterval(keepAlive);
     await queue;
   });
 });

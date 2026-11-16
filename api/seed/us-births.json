@@ -1,8 +1,15 @@
 {
   "id": "us_births",
   "title": "US births",
-  "summary": "Hand-written M2 check: four tiles over Superset's birth_names example, queried live.",
-  "filters": [{ "id": "f_time", "type": "time_range", "label": "Time range", "default": "No filter" }],
+  "summary": "Births in Superset's birth_names sample, 1965 to 2008: 80.7M in all, peaking in 1990, with more boys than girls recorded every year.",
+  "filters": [
+    {
+      "id": "f_time",
+      "type": "time_range",
+      "label": "Time range",
+      "default": "No filter"
+    }
+  ],
   "tiles": [
     {
       "id": "t_total",
@@ -10,11 +17,24 @@
       "source": {
         "type": "superset_metrics",
         "datasetId": "name:birth_names",
-        "metrics": ["sum__num"],
+        "metrics": [
+          "sum__num"
+        ],
         "timeRange": "$f_time"
       },
-      "viz": { "type": "big_number", "value": "sum__num", "format": "compact", "unit": "births" },
-      "layout": { "x": 0, "y": 0, "w": 4, "h": 3 }
+      "viz": {
+        "type": "big_number",
+        "value": "sum__num",
+        "format": "compact",
+        "unit": "births"
+      },
+      "layout": {
+        "x": 0,
+        "y": 0,
+        "w": 4,
+        "h": 3
+      },
+      "note": "80.7M births across 1965 to 2008 in this sample."
     },
     {
       "id": "t_by_year",
@@ -22,14 +42,31 @@
       "source": {
         "type": "superset_metrics",
         "datasetId": "name:birth_names",
-        "metrics": ["sum__num"],
-        "dimensions": ["ds", "gender"],
+        "metrics": [
+          "sum__num"
+        ],
+        "dimensions": [
+          "ds",
+          "gender"
+        ],
         "timeColumn": "ds",
         "timeGrain": "P1Y",
         "timeRange": "$f_time"
       },
-      "viz": { "type": "line", "x": "ds", "y": "sum__num", "series": "gender", "format": "compact" },
-      "layout": { "x": 4, "y": 0, "w": 8, "h": 3 }
+      "viz": {
+        "type": "line",
+        "x": "ds",
+        "y": "sum__num",
+        "series": "gender",
+        "format": "compact"
+      },
+      "layout": {
+        "x": 4,
+        "y": 0,
+        "w": 8,
+        "h": 3
+      },
+      "note": "Births peaked in 1990 at 2.19M; boys outnumber girls in every year of the sample."
     },
     {
       "id": "t_states",
@@ -37,13 +74,35 @@
       "source": {
         "type": "superset_metrics",
         "datasetId": "name:birth_names",
-        "metrics": ["sum__num"],
-        "dimensions": ["state"],
+        "metrics": [
+          "sum__num"
+        ],
+        "dimensions": [
+          "state"
+        ],
         "timeRange": "$f_time",
-        "rowLimit": 10
+        "rowLimit": 10,
+        "filters": [
+          {
+            "col": "state",
+            "op": "!=",
+            "val": "other"
+          }
+        ]
       },
-      "viz": { "type": "bar", "x": "state", "y": "sum__num", "format": "compact" },
-      "layout": { "x": 0, "y": 3, "w": 6, "h": 4 }
+      "viz": {
+        "type": "bar",
+        "x": "state",
+        "y": "sum__num",
+        "format": "compact"
+      },
+      "layout": {
+        "x": 0,
+        "y": 3,
+        "w": 6,
+        "h": 4
+      },
+      "note": "California leads with 9.0M births, ahead of New York and Texas."
     },
     {
       "id": "t_names",
@@ -51,13 +110,37 @@
       "source": {
         "type": "superset_metrics",
         "datasetId": "name:birth_names",
-        "metrics": ["sum__num", { "column": "state", "aggregate": "COUNT_DISTINCT", "label": "states" }],
-        "dimensions": ["name", "gender"],
+        "metrics": [
+          "sum__num",
+          {
+            "column": "state",
+            "aggregate": "COUNT_DISTINCT",
+            "label": "states"
+          }
+        ],
+        "dimensions": [
+          "name",
+          "gender"
+        ],
         "timeRange": "$f_time",
         "rowLimit": 15
       },
-      "viz": { "type": "table", "columns": ["name", "gender", "sum__num", "states"] },
-      "layout": { "x": 6, "y": 3, "w": 6, "h": 4 }
+      "viz": {
+        "type": "table",
+        "columns": [
+          "name",
+          "gender",
+          "sum__num",
+          "states"
+        ]
+      },
+      "layout": {
+        "x": 6,
+        "y": 3,
+        "w": 6,
+        "h": 4
+      },
+      "note": "Michael leads with 2.47M births, ahead of Christopher and David."
     }
   ]
 }

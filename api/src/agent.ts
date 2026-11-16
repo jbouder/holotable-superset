@@ -152,7 +152,17 @@ async function openingMessage(req: ChatRequest): Promise<string> {
 export async function runAgent(req: ChatRequest, emit: Emit, signal: AbortSignal): Promise<void> {
   const started = Date.now();
   const client = makeClient();
-  const deadline = AbortSignal.any([signal, AbortSignal.timeout(config.llm.timeLimit * 1000)]);
+  // A plain controller and timer: a signal from AbortSignal.any() over
+  // AbortSignal.timeout() can be garbage collected before it fires.
+  const stop = new AbortController();
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    stop.abort();
+  }, config.llm.timeLimit * 1000);
+  const onClientGone = () => stop.abort();
+  signal.addEventListener("abort", onClientGone, { once: true });
+  const deadline = stop.signal;
   let tools: AgentTools | null = null;
   let dashboardId = req.dashboardId;
 
@@ -221,7 +231,7 @@ export async function runAgent(req: ChatRequest, emit: Emit, signal: AbortSignal
     emit({ type: "error", message: `Stopped after ${MAX_TURNS} steps.` });
   } catch (err) {
     if (signal.aborted) return;
-    if (deadline.aborted) {
+    if (timedOut) {
       emit({ type: "error", message: `Stopped after ${config.llm.timeLimit} seconds.` });
     } else if (err instanceof Anthropic.AuthenticationError) {
       emit({ type: "error", message: "The LLM rejected the API key. Check LLM_API_KEY." });
@@ -235,6 +245,8 @@ export async function runAgent(req: ChatRequest, emit: Emit, signal: AbortSignal
       console.error("agent", err);
     }
   } finally {
+    clearTimeout(timer);
+    signal.removeEventListener("abort", onClientGone);
     await tools?.close();
     emit({ type: "done", dashboardId, seconds: Math.round((Date.now() - started) / 100) / 10 });
   }
