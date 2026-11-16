@@ -1,5 +1,5 @@
 {
-  "name": "holotable-superset-poc",
+  "name": "holotable-superset",
   "private": true,
   "type": "module",
   "workspaces": ["spec", "api", "ui"],
