@@ -9,7 +9,7 @@ COPY spec spec
 COPY ui ui
 RUN npm run build -w @poc/ui
 
-FROM nginx:1.29-alpine
+FROM nginx:1.30.7-alpine
 COPY ui/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/ui/dist /usr/share/nginx/html
 EXPOSE 3000
